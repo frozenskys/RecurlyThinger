@@ -42,7 +42,7 @@ if (!happyToContinue)
     Environment.Exit(0);
 }
 
-var apiKey = "2e638cc52d174f56bcc5afec28924a07";
+var apiKey = "71253a7d77da4149b498748b94a3996a";
 var options = new ClientOptions()
 {
     Region = ClientOptions.Regions.EU

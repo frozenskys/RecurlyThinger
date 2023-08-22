@@ -112,6 +112,14 @@ public class SubscriptionController
         }
         #endregion Does nothing
 
+
+        // We will have to add our own hosted pages
+        /* 
+         * Can we create a subscription based on a plan and
+         * then add addons to that subscription as subscription.addOns before we bill?
+         * 
+         * Give it a go in here
+        */
         var purchaseUrl = $"{_sandboxUrl}subscribe/benplan";
         System.Diagnostics.Process.Start("explorer", purchaseUrl);
     }

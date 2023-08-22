@@ -3,85 +3,70 @@ using Recurly.Resources;
 using RecurlyThinger;
 using Spectre.Console;
 
-var products = DisplayProducts.All.ToArray();
 
-var selectedProducts = AnsiConsole.Prompt(
-    new MultiSelectionPrompt<DisplayProduct>()
-    .Title("What are you buying?")
-    .AddChoices(products)
-    .UseConverter(x => $"{x.DisplayName}")
-    );
+#region Cleardown
+bool performWipe = false;
 
-var answers = new List<Answer>();
-
-foreach (var product in selectedProducts)
-{
-    foreach (var questionKey in product.QuestionKeys)
-    {
-        if (!answers.Any(x => x.Key == questionKey))
-        {
-            var questionText = Questions.All.FirstOrDefault(x => x.Key == questionKey);
-            Console.WriteLine(questionText.Text);
-            var answerValue = Console.ReadLine();
-            answers.Add(new Answer { Key = questionKey, Value = answerValue });
-        }
-    }
+if (performWipe) {
+    ClearDownRecurly cdr = new();
+    cdr.TotalWipe();
 }
+#endregion Cleardown
 
-foreach (var product in selectedProducts)
-{
-    product.Price = PricingEngine.CalculatePrice(product, answers);
-    AnsiConsole.WriteLine($"{product.DisplayName} will cost £{product.Price} per month");
-}
+#region Start
+SubscriptionController subscriptionController = new();
+PlansController plansController = new();
 
-var happyToContinue = AnsiConsole.Confirm("Are you happy to continue?");
+Journey journey = new();
+var selectedProducts = journey.JourneyStart();
+journey.SelectionBasedQuestions(selectedProducts);
 
-if (!happyToContinue)
-{
-    AnsiConsole.WriteLine("Okay, bye!");
-    Environment.Exit(0);
-}
+subscriptionController.CreateSubscription(selectedProducts);
+#endregion Start
 
-var apiKey = "71253a7d77da4149b498748b94a3996a";
-var options = new ClientOptions()
-{
-    Region = ClientOptions.Regions.EU
-};
-var client = new Client(apiKey, options);
+#region Subs & Plans
+//SubscriptionController subscriptionController = new();
+//PlansController plansController = new();
 
+//var sub = subscriptionController.GetAccountSubscription("code-imseankeenan@gmail.com");
 
-var pc = new PlanCreate();
+//if (sub != null)
+//{
 
-var code = Guid.NewGuid().ToString();
+//    #region PlanBits
+//    // Get sub plan
+//    var plan = plansController.GetPlan(sub.Plan.Id);
 
-pc.Name = "Subscription";
-pc.PricingModel = Recurly.Constants.PricingModelType.Fixed;
-pc.IntervalUnit = Recurly.Constants.IntervalUnit.Months;
-pc.Code = code;
-pc.Currencies = new List<PlanPricing> { new PlanPricing() { Currency = "GBP", SetupFee = 0m, UnitAmount = 5.99m } };
+//    // Update the plan name / other info
+//    plansController.UpdatePlan(plan.Id, "The biggest plan ever");
 
-pc.AddOns = new List<AddOnCreate>();
+//    //Create and add a new addon to the plan
+//    var newAddon = plansController.AddAddonToPlan(plan.Id, "Membership", "BSMembership", 500);
 
-foreach (var product in selectedProducts)
-{
-    var addonProduct = new AddOnCreate
-    {
-        Name = product.DisplayName,
-        Code = $"{code}-{product.Name}",
-        Currencies = new List<AddOnPricing>
-        {
-            new AddOnPricing
-            {
-                Currency = "GBP",
-                UnitAmount = product.Price
-            }
-        }
-        
-    };
-    pc.AddOns.Add(addonProduct);
-}
+//    // List the plan details
+//    plansController.GetPlanDetails(plan.Id);
 
-var aaa = client.CreatePlan(pc);
+//    // If we managed to create a new addon, remove it
+//    var wantToRemoveAddon = false;
+//    if (newAddon != null && wantToRemoveAddon)
+//    {
+//        plansController.RemoveAddonFromPlan(plan.Id, newAddon.Id);
+//    }
 
-var purchaseUrl = $"https://bntstest.eu.recurly.com/subscribe/{code}";
-System.Diagnostics.Process.Start("explorer", purchaseUrl);
+//    // List the plan details again
+//    plansController.GetPlanDetails(plan.Id);
+//    #endregion PlanBits
+
+//    #region SubscriptionBits
+//    // Write addons for the plan
+//    //var plansAddOns = plansController.GetPlanAddons(plan.Id);
+//    //foreach(var addOn in plansAddOns.Where(x => x.State == Recurly.Constants.ActiveState.Active))
+//    //{
+//    //    Console.WriteLine(addOn.Name);
+//    //}
+
+//    var change = subscriptionController.ChangeSubscription(sub.Id);
+//    #endregion SubscriptionBits
+//}
+
+#endregion Subs & Plans

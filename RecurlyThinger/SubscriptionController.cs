@@ -1,11 +1,15 @@
 ﻿using Recurly;
 using Recurly.Constants;
+using Recurly.Errors;
 using Recurly.Resources;
 using RecurlyThinger;
+using System.Numerics;
+using System.Security.Principal;
+using System.Xml.Linq;
 
 public class SubscriptionController
 {
-    public Client _client;
+    public Recurly.Client _client;
     public string _sandboxUrl;
     public PlansController _plansController;
 	public SubscriptionController()
@@ -16,7 +20,7 @@ public class SubscriptionController
         {
             Region = ClientOptions.Regions.EU
         };
-        _client = new Client(sandboxApiKey, options);
+        _client = new Recurly.Client(sandboxApiKey, options);
         _plansController = new();
     }
 
@@ -31,7 +35,7 @@ public class SubscriptionController
         var subscriptions = _client.ListAccountSubscriptions(accountId);
         var activeSubs = new List<Subscription>();
         // Active, future maybe others, paused?
-        foreach (Subscription subscription in subscriptions.Where(x => x.State == Recurly.Constants.SubscriptionState.Active))
+        foreach (Subscription subscription in subscriptions.Where(x => x.State == SubscriptionState.Active))
         {
             Console.WriteLine($"Subscription.Id {subscription.Id}");
             activeSubs.Add(subscription);
@@ -118,9 +122,103 @@ public class SubscriptionController
          * Can we create a subscription based on a plan and
          * then add addons to that subscription as subscription.addOns before we bill?
          * 
-         * Give it a go in here
+         * Give it a go in here and create sub without hitting the sandbox
         */
         var purchaseUrl = $"{_sandboxUrl}subscribe/benplan";
         System.Diagnostics.Process.Start("explorer", purchaseUrl);
+    }
+
+    public void CreateSub(List<Product> selectedProducts)
+    {
+
+        var plan = _plansController.GetPlanByCode("benplan");
+        try
+        {
+
+            //Billing info address: Name on account can't be blank,
+            //Billing info: Account number is too long (maximum is 8 characters),
+            //Billing info: Account number is invalid,
+            //Billing info: Sort code can't be blank'
+
+            var subReq = new SubscriptionCreate()
+            {
+                Currency = "GBP",
+                Account = new AccountCreate()
+                {
+                    FirstName = "Tony",
+                    LastName = "TheTiger",
+                    Email = "imseankeenan+generated@gmail.com",
+                    Code = "imseankeenan+generated@gmail.com",
+                    BillingInfo= new BillingInfoCreate()
+                    {
+                        Type = AchType.Bacs,
+                        RoutingNumber = "262654",
+                        AccountNumber = "12345678",
+                        SortCode = "262654",
+                        Cvv = "123",
+                        Month = "01", Year = "25",
+                        NameOnAccount = "Tony Tiger",
+                        Address = new Address()
+                        {
+                            City = "Pickwell",
+                            Country = "GB",
+                            PostalCode = "CE43AL",
+                            Phone = "0123456789",
+                            Street1 = "6 The Paddock",
+                        },
+                    }
+                },
+                PlanCode = plan.Code,
+                AddOns = new List<SubscriptionAddOnCreate>()
+            };
+
+            #region dump
+            var existingAddons = _plansController.GetPlanAddons(plan.Id);
+
+            var newAddonsList = new List<SubscriptionAddOnCreate>() {
+                new SubscriptionAddOnCreate()
+                {
+                    Code = "bsmug", 
+                    // item / addon
+                    AddOnSource = AddOnSource.Item,
+                    Quantity = 1,
+                    UnitAmount = 25m
+                },
+                new SubscriptionAddOnCreate()
+                {
+                    Code = "ins", 
+                    // item / addon
+                    AddOnSource = AddOnSource.Item,
+                    Quantity = 1,
+                    UnitAmount = 150m
+                },
+                new SubscriptionAddOnCreate()
+                {
+                    Code = "breakdown", 
+                    // item / addon
+                    AddOnSource = AddOnSource.Item,
+                    Quantity = 1,
+                    UnitAmount = 17m
+                },
+
+            };
+            #endregion
+
+            subReq.AddOns.AddRange(newAddonsList);
+
+            Subscription subscription = _client.CreateSubscription(subReq);
+            Console.WriteLine($"Created Subscription with Id: {subscription.Uuid}");
+        }
+        catch (Recurly.Errors.Validation ex)
+        {
+            // If the request was not valid, you may want to tell your user
+            // why. You can find the invalid params and reasons in ex.Error.Params
+            Console.WriteLine($"Failed validation: {ex.Error.Message}");
+        }
+        catch (Recurly.Errors.ApiError ex)
+        {
+            // Use ApiError to catch a generic error from the API
+            Console.WriteLine($"Unexpected Recurly Error: {ex.Error.Message}");
+        }
     }
 }

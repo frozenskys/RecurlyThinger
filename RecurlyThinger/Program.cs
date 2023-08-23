@@ -21,7 +21,7 @@ Journey journey = new();
 var selectedProducts = journey.JourneyStart();
 journey.SelectionBasedQuestions(selectedProducts);
 
-subscriptionController.CreateSubscription(selectedProducts);
+subscriptionController.CreateSub(selectedProducts);
 #endregion Start
 
 #region Subs & Plans
